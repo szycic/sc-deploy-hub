@@ -253,9 +253,29 @@ async def execute_deploy(deployment_id: int, repo_name: str, repo_config: Reposi
                 db.complete_deployment(deployment_id, "failed")
                 return
 
-        restart_cmd = f"sudo systemctl restart {repo_config.service_name}"
         if getattr(repo_config, "restart_async", False):
-            restart_cmd += " --no-block"
+            # For asynchronous restarts (e.g. self-restart), complete the deployment first.
+            # Otherwise, systemd shutting down this process will abort the task, leaving
+            # the deployment marked as "failed" or "running" in the database.
+            await log_and_broadcast(deployment_id, "Deployment completed successfully!\n")
+            db.complete_deployment(deployment_id, "success")
+            await broadcaster.broadcast(deployment_id, None)
+
+            restart_cmd = f"sudo systemctl restart {repo_config.service_name} --no-block"
+            await log_and_broadcast(deployment_id, f"Restarting systemd service asynchronously: {repo_config.service_name}...\n")
+            try:
+                # Fire and forget the restart command to prevent blocking/waiting on a dying process
+                await asyncio.create_subprocess_shell(
+                    restart_cmd,
+                    cwd=target_path,
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL,
+                )
+            except Exception as e:
+                await log_and_broadcast(deployment_id, f"Failed to initiate systemd restart: {e}\n")
+            return
+
+        restart_cmd = f"sudo systemctl restart {repo_config.service_name}"
         await log_and_broadcast(deployment_id, f"Restarting systemd service: {repo_config.service_name}...\n")
         if not await run_command(restart_cmd, target_path, deployment_id):
             await log_and_broadcast(deployment_id, "Systemd restart failed.\n")
