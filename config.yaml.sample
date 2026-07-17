@@ -6,5 +6,6 @@ repositories:
     path: "/path/to/your/repo"
     branch: "main"
     service_name: "your-service.service"
+    # restart_async: true # Optional: Set to true to restart with --no-block (essential for self-restarting services)
     deploy_steps:
       - ".venv/bin/pip install -r requirements.txt"

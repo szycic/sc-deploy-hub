@@ -85,6 +85,7 @@ async def serve_index(request: Request):
             "branch": repo_config.branch,
             "service_name": repo_config.service_name,
             "deploy_steps": repo_config.deploy_steps,
+            "restart_async": getattr(repo_config, "restart_async", False),
             "status": status,
         })
 

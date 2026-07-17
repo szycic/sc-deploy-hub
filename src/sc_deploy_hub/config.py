@@ -29,6 +29,7 @@ class RepositoryConfig(BaseModel):
     branch: str = "main"
     service_name: str
     deploy_steps: List[str] = Field(default_factory=list)
+    restart_async: bool = False
 
 
 class WebhookConfig(BaseModel):

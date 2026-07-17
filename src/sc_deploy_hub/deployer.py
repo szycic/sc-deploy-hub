@@ -254,6 +254,8 @@ async def execute_deploy(deployment_id: int, repo_name: str, repo_config: Reposi
                 return
 
         restart_cmd = f"sudo systemctl restart {repo_config.service_name}"
+        if getattr(repo_config, "restart_async", False):
+            restart_cmd += " --no-block"
         await log_and_broadcast(deployment_id, f"Restarting systemd service: {repo_config.service_name}...\n")
         if not await run_command(restart_cmd, target_path, deployment_id):
             await log_and_broadcast(deployment_id, "Systemd restart failed.\n")
