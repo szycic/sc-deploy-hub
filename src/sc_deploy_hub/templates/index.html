@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deploy Hub</title>
+    <!-- Google Fonts Inter & Fira Code for Terminal -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="icon" href="/static/favicon.ico" />
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                </svg>
+                <span>Deploy Hub</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" id="nav-dashboard">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="9" rx="1" />
+                        <rect x="14" y="3" width="7" height="5" rx="1" />
+                        <rect x="14" y="12" width="7" height="9" rx="1" />
+                        <rect x="3" y="16" width="7" height="5" rx="1" />
+                    </svg>
+                    Dashboard
+                </a>
+                <a href="#" class="nav-item" id="nav-history">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    History
+                </a>
+                <a href="#" class="nav-item" id="nav-config">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3" />
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" />
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07" />
+                    </svg>
+                    Config
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <span class="status-indicator online"></span>
+                <span>Controller Online</span>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-title">
+                    <h1 id="page-title">Service Dashboard</h1>
+                    <p class="subtitle" id="page-subtitle">Monitor and orchestrate systemd deployments</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" id="btn-refresh">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            class="icon-spin-hover">
+                            <polyline points="23 4 23 10 17 10" />
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                        </svg>
+                        Refresh Status
+                    </button>
+                </div>
+            </header>
+
+            <!-- Dashboard Tab Content -->
+            <section class="tab-content" id="tab-dashboard-content">
+                <!-- Metrics Grid -->
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-info">
+                            <span class="metric-label">Monitored Services</span>
+                            <span class="metric-value" id="metric-services-count">{{ repositories|length }}</span>
+                        </div>
+                        <div class="metric-icon bg-indigo-glow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+                                <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+                                <line x1="6" y1="6" x2="6.01" y2="6" />
+                                <line x1="6" y1="18" x2="6.01" y2="18" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-info">
+                            <span class="metric-label">Active Services</span>
+                            <span class="metric-value" id="metric-active-count">
+                                {{ repositories | selectattr('status', 'equalto', 'active') | list | length }}
+                            </span>
+                        </div>
+                        <div class="metric-icon bg-emerald-glow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                                <polyline points="22 4 12 14.01 9 11.01" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-info">
+                            <span class="metric-label">Recent Deploys (24h)</span>
+                            <span class="metric-value" id="metric-deploys-count">0</span>
+                        </div>
+                        <div class="metric-icon bg-amber-glow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Repository Services Grid -->
+                <div class="services-header-row">
+                    <h2>Configured Services</h2>
+                </div>
+
+                <div class="services-grid" id="services-container">
+                    {% for service in repositories %}
+                    <div class="service-card" data-service="{{ service.name }}">
+                        <div class="service-card-header">
+                            <div class="service-meta">
+                                <h3>{{ service.name }}</h3>
+                                <p class="service-path" title="{{ service.path }}">{{ service.path }}</p>
+                            </div>
+                            <span
+                                class="status-pill {% if service.status == 'active' %}active{% elif service.status == 'failed' %}failed{% else %}inactive{% endif %}">{{
+                                service.status }}</span>
+                        </div>
+                        <div class="service-card-body">
+                            <div class="info-item">
+                                <span class="info-label">Target Service</span>
+                                <span class="info-value">{{ service.service_name }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Git Branch</span>
+                                <span class="info-value branch">{{ service.branch }}</span>
+                            </div>
+                            <div class="last-commit-block">
+                                <p style="color: var(--text-dim); font-size: 0.8rem;">Loading latest deployment stats...
+                                </p>
+                            </div>
+                        </div>
+                        <div class="service-card-footer">
+                            <button class="btn btn-primary btn-small" onclick="triggerDeploy('{{ service.name }}')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polygon points="5 3 19 12 5 21 5 3" />
+                                </svg>
+                                Deploy
+                            </button>
+                            <button class="btn btn-secondary btn-small"
+                                onclick="controlService('{{ service.name }}', 'restart')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                                </svg>
+                                Restart
+                            </button>
+                            <button class="btn btn-secondary btn-small" onclick="showJournalLogs('{{ service.name }}')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <line x1="16" y1="13" x2="8" y2="13" />
+                                    <line x1="16" y1="17" x2="8" y2="17" />
+                                    <polyline points="10 9 9 9 8 9" />
+                                </svg>
+                                Journal
+                            </button>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="loading-state">
+                        <p>No repositories configured yet in config.yaml.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <!-- History Tab Content (Hidden by default) -->
+            <section class="tab-content hidden" id="tab-history-content">
+                <div class="history-card">
+                    <div class="history-header">
+                        <h2>Deployment Audit Log</h2>
+                        <span class="badge" id="history-count">0 executions</span>
+                    </div>
+                    <div class="table-container">
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Service</th>
+                                    <th>Trigger</th>
+                                    <th>Commit / Message</th>
+                                    <th>Timestamp</th>
+                                    <th>Status</th>
+                                    <th class="text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-table-body">
+                                <tr>
+                                    <td colspan="7" class="text-center">No deployment history found.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Config Editor Tab -->
+            <section class="tab-content hidden" id="tab-config-content">
+                <div class="config-editor-wrap">
+
+                    <!-- Chrome bar (traffic lights + filename + action buttons) -->
+                    <div class="config-editor-chrome">
+                        <div class="config-editor-chrome-left">
+                            <div class="config-editor-dots">
+                                <span class="config-editor-dot red"></span>
+                                <span class="config-editor-dot yellow"></span>
+                                <span class="config-editor-dot green"></span>
+                            </div>
+                            <div class="config-editor-filename">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                </svg>
+                                config.yaml
+                                <span class="config-dirty-dot" id="config-dirty-dot" title="Unsaved changes"></span>
+                            </div>
+                        </div>
+                        <div class="config-editor-chrome-right">
+                            <span class="config-save-status" id="config-save-status"></span>
+                            <button class="btn btn-secondary btn-small" id="btn-reset-config">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="23 4 23 10 17 10" />
+                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                                </svg>
+                                Reload
+                            </button>
+                            <button class="btn btn-primary btn-small" id="btn-save-config">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                                    <polyline points="17 21 17 13 7 13" />
+                                    <polyline points="7 3 7 8 15 8" />
+                                </svg>
+                                Save
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Info bar (path + language tag) -->
+                    <div class="config-editor-infobar">
+                        <div class="config-editor-infobar-left">
+                            <span>sc-deploy-hub / config.yaml</span>
+                        </div>
+                        <span class="config-lang-badge">YAML</span>
+                    </div>
+
+                    <!-- Editor body: gutter + textarea -->
+                    <div class="config-editor-body">
+                        <div class="config-editor-gutter" id="config-gutter" aria-hidden="true">
+                            <div class="config-editor-gutter-inner" id="config-gutter-inner">1</div>
+                        </div>
+                        <textarea class="config-textarea" id="config-textarea" spellcheck="false" autocomplete="off"
+                            autocorrect="off" autocapitalize="off" placeholder="Loading config.yaml..."></textarea>
+                    </div>
+
+                    <!-- Status bar (cursor position + encoding) -->
+                    <div class="config-editor-statusbar">
+                        <span id="config-cursor-pos" class="config-cursor-pos">Ln 1, Col 1</span>
+                        <div class="config-editor-statusbar-right">
+                            <span>UTF-8</span>
+                            <span>Spaces: 2</span>
+                            <span>YAML</span>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Live Console Log Overlay Modal -->
+    <div class="modal-overlay hidden" id="console-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="terminal-dot red"></span>
+                    <span class="terminal-dot yellow"></span>
+                    <span class="terminal-dot green"></span>
+                    <h3 id="console-title">Deployment Console Output</h3>
+                </div>
+                <button class="btn-close" id="btn-close-console">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body console-body">
+                <pre class="terminal-output" id="terminal-screen">Waiting for logs...</pre>
+            </div>
+            <div class="modal-footer">
+                <span class="console-status" id="console-status-text">
+                    <span class="spinner-small"></span> Connection active...
+                </span>
+                <button class="btn btn-secondary" id="btn-clear-console">Clear Screen</button>
+                <button class="btn btn-primary" id="btn-autoscroll">Auto-Scroll: ON</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Service Journal Logs Modal -->
+    <div class="modal-overlay hidden" id="journal-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <h3 id="journal-title">systemd Journalctl Logs</h3>
+                </div>
+                <button class="btn-close" id="btn-close-journal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body console-body">
+                <pre class="terminal-output" id="journal-screen">Loading systemd journal...</pre>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btn-refresh-journal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="width: 14px; height: 14px; margin-right: 6px;">
+                        <polyline points="23 4 23 10 17 10" />
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                    </svg>
+                    Reload Logs
+                </button>
+                <button class="btn btn-primary" id="btn-close-journal-footer">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+
+</html>

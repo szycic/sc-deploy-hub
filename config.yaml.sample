@@ -1,0 +1,10 @@
+webhooks:
+  github_secret: "your-github-webhook-secret"
+
+repositories:
+  your-repo-name:
+    path: "/path/to/your/repo"
+    branch: "main"
+    service_name: "your-service.service"
+    deploy_steps:
+      - ".venv/bin/pip install -r requirements.txt"
