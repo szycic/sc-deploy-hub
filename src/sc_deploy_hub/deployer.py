@@ -13,6 +13,7 @@ Provides:
 
 import asyncio
 import os
+from datetime import datetime
 from typing import Dict, Set
 
 from sc_deploy_hub.config import RepositoryConfig
@@ -148,39 +149,120 @@ async def run_command(cmd: str, cwd: str, deployment_id: int) -> bool:
 async def get_service_status(service_name: str) -> str:
     """Query the active state of a systemd service unit.
 
-    First tries ``systemctl is-active`` for a fast single-word answer; falls
-    back to ``systemctl show -p ActiveState`` if the result is not one of the
-    expected strings.
-
     Args:
         service_name: The systemd unit name (e.g. ``"my-app.service"``).
 
     Returns:
         One of ``"active"``, ``"inactive"``, ``"failed"``, or ``"unknown"``.
     """
+    details = await get_service_details(service_name)
+    return details["status"]
+
+
+async def get_service_details(service_name: str) -> dict:
+    """Query extensive details of a systemd service unit.
+
+    Args:
+        service_name: The systemd unit name (e.g. ``"my-app.service"``).
+
+    Returns:
+        A dictionary containing:
+            * status: One of ``"active"``, ``"inactive"``, ``"failed"``, or ``"unknown"``.
+            * sub_state: Systemd sub-state (e.g. ``"running"``, ``"dead"``).
+            * pid: The Main PID (int), or None.
+            * memory: Human-readable current memory usage (str), or None.
+            * uptime: Human-readable active uptime duration (str), or None.
+    """
     try:
         process = await asyncio.create_subprocess_exec(
-            "systemctl", "is-active", service_name,
+            "systemctl", "show",
+            "-p", "ActiveState",
+            "-p", "SubState",
+            "-p", "MainPID",
+            "-p", "MemoryCurrent",
+            "-p", "ActiveEnterTimestamp",
+            service_name,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
         stdout, _ = await process.communicate()
-        status = stdout.decode().strip()
-        if status in ("active", "inactive", "failed"):
-            return status
+        lines = stdout.decode(errors="replace").strip().splitlines()
+        props = {}
+        for line in lines:
+            if "=" in line:
+                k, v = line.split("=", 1)
+                props[k.strip()] = v.strip()
+        
+        status = props.get("ActiveState", "unknown")
+        sub_state = props.get("SubState", "")
+        
+        # Parse PID
+        pid_str = props.get("MainPID", "0")
+        pid = int(pid_str) if pid_str.isdigit() and pid_str != "0" else None
+        
+        # Parse Memory
+        memory_str = props.get("MemoryCurrent", "")
+        memory = None
+        if memory_str.isdigit():
+            mem_val = int(memory_str)
+            # 18446744073709551615 represents no limit / disabled
+            if mem_val > 0 and mem_val < 18446744073709551615:
+                if mem_val >= 1024 * 1024:
+                    memory = f"{mem_val / (1024 * 1024):.1f} MB"
+                elif mem_val >= 1024:
+                    memory = f"{mem_val / 1024:.0f} KB"
+                else:
+                    memory = f"{mem_val} B"
 
-        process = await asyncio.create_subprocess_exec(
-            "systemctl", "show", "-p", "ActiveState", service_name,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, _ = await process.communicate()
-        line = stdout.decode().strip()
-        if "=" in line:
-            return line.split("=")[1]
-        return "unknown"
+        # Parse Uptime from ActiveEnterTimestamp
+        # Timestamp format: "Sat 2026-07-18 08:00:00 CEST"
+        timestamp_str = props.get("ActiveEnterTimestamp", "")
+        uptime = None
+        if timestamp_str and timestamp_str not in ("n/a", "", "@0", "0"):
+            parts = timestamp_str.split()
+            date_part = None
+            time_part = None
+            for p in parts:
+                if "-" in p and len(p) == 10 and p[4] == "-" and p[7] == "-":
+                    date_part = p
+                elif ":" in p and len(p) == 8 and p[2] == ":" and p[5] == ":":
+                    time_part = p
+            
+            if date_part and time_part:
+                try:
+                    dt = datetime.strptime(f"{date_part} {time_part}", "%Y-%m-%d %H:%M:%S")
+                    diff = (datetime.now() - dt).total_seconds()
+                    if diff >= 0:
+                        if diff < 60:
+                            uptime = f"{int(diff)}s"
+                        elif diff < 3600:
+                            uptime = f"{int(diff // 60)}m"
+                        elif diff < 86400:
+                            hrs = int(diff // 3600)
+                            mins = int((diff % 3600) // 60)
+                            uptime = f"{hrs}h {mins}m"
+                        else:
+                            days = int(diff // 86400)
+                            hrs = int((diff % 86400) // 3600)
+                            uptime = f"{days}d {hrs}h"
+                except Exception:
+                    pass
+        
+        return {
+            "status": status,
+            "sub_state": sub_state,
+            "pid": pid,
+            "memory": memory,
+            "uptime": uptime
+        }
     except Exception:
-        return "unknown"
+        return {
+            "status": "unknown",
+            "sub_state": "",
+            "pid": None,
+            "memory": None,
+            "uptime": None
+        }
 
 
 async def control_service(service_name: str, action: str) -> bool:

@@ -193,12 +193,12 @@ async def get_services():
     config_data = load_config()
     repo_names = list(config_data.repositories.keys())
 
-    # Query all statuses concurrently
+    # Query all statuses/details concurrently
     status_tasks = [
-        deployer.get_service_status(config_data.repositories[name].service_name)
+        deployer.get_service_details(config_data.repositories[name].service_name)
         for name in repo_names
     ]
-    statuses = await asyncio.gather(*status_tasks)
+    details_list = await asyncio.gather(*status_tasks)
 
     # Fetch last deployments for all repos in a single query
     last_deployments = {}
@@ -220,7 +220,7 @@ async def get_services():
             last_deployments[repo_name] = row_dict
 
     result = []
-    for name, status in zip(repo_names, statuses):
+    for name, details in zip(repo_names, details_list):
         repo_config = config_data.repositories[name]
         result.append({
             "name": name,
@@ -229,7 +229,8 @@ async def get_services():
             "service_name": repo_config.service_name,
             "deploy_steps": repo_config.deploy_steps,
             "restart_async": getattr(repo_config, "restart_async", False),
-            "status": status,
+            "status": details["status"],
+            "details": details,
             "last_deployment": last_deployments.get(name),
         })
     return result

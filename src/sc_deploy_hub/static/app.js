@@ -251,7 +251,37 @@ function renderServices() {
             statusPill.textContent = service.status;
         }
 
-        // 2. Update deployment history block
+        // 2. Update service details block (Uptime, Memory, PID)
+        const detailsBlock = card.querySelector(".service-details-block");
+        if (detailsBlock) {
+            if (service.status === "active" && service.details) {
+                detailsBlock.style.display = "flex";
+                const uptimeVal = detailsBlock.querySelector(".detail-uptime");
+                const memoryVal = detailsBlock.querySelector(".detail-memory");
+                const pidVal = detailsBlock.querySelector(".detail-pid");
+                if (uptimeVal) uptimeVal.textContent = service.details.uptime || "-";
+                if (memoryVal) memoryVal.textContent = service.details.memory || "N/A";
+                if (pidVal) pidVal.textContent = service.details.pid || "N/A";
+            } else {
+                detailsBlock.style.display = "none";
+            }
+        }
+
+        // 3. Toggle Control Buttons
+        const startBtn = card.querySelector(".btn-start");
+        const stopBtn = card.querySelector(".btn-stop");
+        const restartBtn = card.querySelector(".btn-restart");
+        if (service.status === "active") {
+            if (startBtn) startBtn.style.display = "none";
+            if (stopBtn) stopBtn.style.display = "inline-flex";
+            if (restartBtn) restartBtn.style.display = "inline-flex";
+        } else {
+            if (startBtn) startBtn.style.display = "inline-flex";
+            if (stopBtn) stopBtn.style.display = "none";
+            if (restartBtn) restartBtn.style.display = "none";
+        }
+
+        // 4. Update deployment history block
         const commitBlock = card.querySelector(".last-commit-block");
         if (commitBlock) {
             if (service.last_deployment) {
