@@ -452,7 +452,7 @@ async function showJournalLogs(repoName) {
 function formatDate(isoStr) {
     if (!isoStr) return "-";
     const date = new Date(isoStr);
-    return date.toLocaleString();
+    return date.toLocaleString(undefined, { hour12: false });
 }
 
 async function loadConfig() {
