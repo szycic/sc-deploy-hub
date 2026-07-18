@@ -230,10 +230,25 @@ async def get_service_details(service_name: str) -> dict:
         if mem_val is not None:
             memory = _fmt_mem(mem_val)
         else:
-            # Fallback: use MemoryPeak if available (systemd ≥ 253)
+            # Fallback 1: MemoryPeak (systemd ≥ 253)
             peak_val = _parse_mem_bytes(props.get("MemoryPeak", ""))
             if peak_val is not None:
                 memory = f"{_fmt_mem(peak_val)} (peak)"
+
+        # Fallback 2: read RSS from /proc/{pid}/status — always available regardless
+        # of whether MemoryAccounting is enabled in the systemd unit.
+        if memory is None and pid is not None:
+            try:
+                with open(f"/proc/{pid}/status", "r") as _f:
+                    for _line in _f:
+                        if _line.startswith("VmRSS:"):
+                            _parts = _line.split()
+                            if len(_parts) >= 2:
+                                _kb = int(_parts[1])
+                                memory = _fmt_mem(_kb * 1024)
+                            break
+            except Exception:
+                pass
 
         # Parse Uptime from ActiveEnterTimestamp
         # Timestamp format: "Sat 2026-07-18 08:00:00 CEST"
