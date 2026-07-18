@@ -426,11 +426,12 @@ body {
 
 /* Service Card Actions Footer */
 .service-card-footer {
-    padding: 16px 24px 24px;
+    padding: 12px 16px 16px;
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    flex-wrap: nowrap;
+    gap: 6px;
     border-top: 1px solid rgba(255, 255, 255, 0.02);
+    overflow: hidden;
 }
 
 /* Button Stylings */
@@ -453,6 +454,18 @@ body {
     width: 16px;
     height: 16px;
 }
+
+/* In the tight card footer, hide icons on non-primary buttons to avoid overflow */
+.service-card-footer .btn-secondary svg,
+.service-card-footer .btn-success svg,
+.service-card-footer .btn-danger svg {
+    display: none;
+}
+
+.service-card-footer .btn {
+    gap: 4px;
+}
+
 
 .btn-primary {
     background-color: var(--color-primary);
@@ -496,9 +509,10 @@ body {
 }
 
 .btn-small {
-    padding: 6px 12px;
-    font-size: 0.775rem;
+    padding: 5px 10px;
+    font-size: 0.75rem;
     border-radius: 6px;
+    white-space: nowrap;
 }
 
 .btn:disabled {

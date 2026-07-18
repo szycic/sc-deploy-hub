@@ -180,6 +180,7 @@ async def get_service_details(service_name: str) -> dict:
             "-p", "SubState",
             "-p", "MainPID",
             "-p", "MemoryCurrent",
+            "-p", "MemoryPeak",
             "-p", "ActiveEnterTimestamp",
             service_name,
             stdout=asyncio.subprocess.PIPE,
@@ -200,19 +201,39 @@ async def get_service_details(service_name: str) -> dict:
         pid_str = props.get("MainPID", "0")
         pid = int(pid_str) if pid_str.isdigit() and pid_str != "0" else None
         
-        # Parse Memory
-        memory_str = props.get("MemoryCurrent", "")
+        # Parse Memory — MemoryCurrent requires MemoryAccounting=yes in the unit.
+        # If disabled, systemd returns '[not set]' or the uint64 sentinel max value.
+        # Fall back to MemoryPeak (available on systemd ≥ 253) when current is unavailable.
+        _UINT64_MAX = 18446744073709551615
+
+        def _parse_mem_bytes(raw: str):
+            raw = raw.strip()
+            if not raw or raw in ("[not set]", "infinity", ""):
+                return None
+            try:
+                val = int(raw)
+                if val <= 0 or val >= _UINT64_MAX:
+                    return None
+                return val
+            except ValueError:
+                return None
+
+        def _fmt_mem(val: int) -> str:
+            if val >= 1024 * 1024:
+                return f"{val / (1024 * 1024):.1f} MB"
+            elif val >= 1024:
+                return f"{val / 1024:.0f} KB"
+            return f"{val} B"
+
         memory = None
-        if memory_str.isdigit():
-            mem_val = int(memory_str)
-            # 18446744073709551615 represents no limit / disabled
-            if mem_val > 0 and mem_val < 18446744073709551615:
-                if mem_val >= 1024 * 1024:
-                    memory = f"{mem_val / (1024 * 1024):.1f} MB"
-                elif mem_val >= 1024:
-                    memory = f"{mem_val / 1024:.0f} KB"
-                else:
-                    memory = f"{mem_val} B"
+        mem_val = _parse_mem_bytes(props.get("MemoryCurrent", ""))
+        if mem_val is not None:
+            memory = _fmt_mem(mem_val)
+        else:
+            # Fallback: use MemoryPeak if available (systemd ≥ 253)
+            peak_val = _parse_mem_bytes(props.get("MemoryPeak", ""))
+            if peak_val is not None:
+                memory = f"{_fmt_mem(peak_val)} (peak)"
 
         # Parse Uptime from ActiveEnterTimestamp
         # Timestamp format: "Sat 2026-07-18 08:00:00 CEST"
