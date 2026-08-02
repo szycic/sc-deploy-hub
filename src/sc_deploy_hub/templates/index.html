@@ -53,7 +53,7 @@
             </nav>
             <div class="sidebar-footer">
                 <span class="status-indicator online"></span>
-                <span>Controller Online</span>
+                <span>Hub Online</span>
             </div>
         </aside>
 
@@ -147,8 +147,9 @@
                                 <span class="info-label">Git Branch</span>
                                 <span class="info-value branch">{{ service.branch }}</span>
                             </div>
-                            
-                            <div class="service-details-block" {% if service.status != 'active' %}style="display: none;"{% endif %}>
+
+                            <div class="service-details-block" {% if service.status !='active' %}style="display: none;"
+                                {% endif %}>
                                 <div class="info-item">
                                     <span class="info-label">Uptime</span>
                                     <span class="info-value detail-uptime">{{ service.details.uptime or '-' }}</span>
@@ -169,27 +170,31 @@
                             </div>
                         </div>
                         <div class="service-card-footer">
-                            <button class="btn btn-primary btn-small btn-deploy" onclick="triggerDeploy('{{ service.name }}')">
+                            <button class="btn btn-primary btn-small btn-deploy"
+                                onclick="triggerDeploy('{{ service.name }}')">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polygon points="5 3 19 12 5 21 5 3" />
                                 </svg>
                                 Deploy
                             </button>
-                            <button class="btn btn-success btn-small btn-start" {% if service.status == 'active' %}style="display: none;"{% endif %}
+                            <button class="btn btn-success btn-small btn-start" {% if service.status=='active'
+                                %}style="display: none;" {% endif %}
                                 onclick="controlService('{{ service.name }}', 'start')">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polygon points="5 3 19 12 5 21 5 3" />
                                 </svg>
                                 Start
                             </button>
-                            <button class="btn btn-danger btn-small btn-stop" {% if service.status != 'active' %}style="display: none;"{% endif %}
+                            <button class="btn btn-danger btn-small btn-stop" {% if service.status !='active'
+                                %}style="display: none;" {% endif %}
                                 onclick="controlService('{{ service.name }}', 'stop')">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <rect x="4" y="4" width="16" height="16" />
                                 </svg>
                                 Stop
                             </button>
-                            <button class="btn btn-secondary btn-small btn-restart" {% if service.status != 'active' %}style="display: none;"{% endif %}
+                            <button class="btn btn-secondary btn-small btn-restart" {% if service.status !='active'
+                                %}style="display: none;" {% endif %}
                                 onclick="controlService('{{ service.name }}', 'restart')">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
