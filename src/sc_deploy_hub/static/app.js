@@ -294,11 +294,16 @@ function renderServices() {
                     deployBtn.disabled = isRunning;
                 }
 
+                const logBtnHTML = `<button class="btn btn-secondary btn-small" style="padding: 2px 8px; font-size: 0.75rem; margin-left: 8px;" onclick="viewLogs(${ld.id}, '${service.name}', '${ld.status}')">${isRunning ? '⚡ Live Logs' : 'View Logs'}</button>`;
+
                 if (ld.commit_sha) {
                     commitBlock.innerHTML = `
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <span class="commit-sha">${ld.commit_sha.substring(0, 8)}</span>
-                            <span class="${statusClass}">${ld.status}</span>
+                            <div>
+                                <span class="${statusClass}">${ld.status}</span>
+                                ${logBtnHTML}
+                            </div>
                         </div>
                         <p class="commit-msg">${ld.commit_message || 'Manual Trigger'}</p>
                         <p class="commit-author">by ${ld.author || 'system'} • ${formatDate(ld.started_at)}</p>
@@ -307,7 +312,10 @@ function renderServices() {
                     commitBlock.innerHTML = `
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <span style="font-weight: 500;">Manual Run</span>
-                            <span class="${statusClass}">${ld.status}</span>
+                            <div>
+                                <span class="${statusClass}">${ld.status}</span>
+                                ${logBtnHTML}
+                            </div>
                         </div>
                         <p class="commit-author">Triggered at ${formatDate(ld.started_at)}</p>
                     `;
@@ -348,6 +356,9 @@ function renderHistory() {
             commitHTML = `<span style="color: var(--text-dim);">Manual trigger</span>`;
         }
 
+        const isRunning = dep.status === "running";
+        const btnLabel = isRunning ? "⚡ Live Logs" : "View Logs";
+
         tr.innerHTML = `
             <td>#${dep.id}</td>
             <td><strong>${dep.repo_name}</strong></td>
@@ -356,8 +367,8 @@ function renderHistory() {
             <td>${formatDate(dep.started_at)}</td>
             <td><span class="${statusClass}">${dep.status}</span></td>
             <td class="text-right">
-                <button class="btn btn-secondary btn-small" onclick="viewStaticLogs(${dep.id})">
-                    View Logs
+                <button class="btn btn-secondary btn-small" onclick="viewLogs(${dep.id}, '${dep.repo_name}', '${dep.status}')">
+                    ${btnLabel}
                 </button>
             </td>
         `;
@@ -397,6 +408,15 @@ async function controlService(repoName, action) {
         pollServices();
     } catch (error) {
         alert(`Control Action Failed: ${error.message}`);
+    }
+}
+
+// Unified View Logs Dispatcher (Live Stream if running, Static if completed)
+function viewLogs(deployId, repoName, status) {
+    if (status === "running") {
+        connectLogStream(deployId, repoName);
+    } else {
+        viewStaticLogs(deployId, repoName);
     }
 }
 
@@ -443,8 +463,9 @@ function closeConsole() {
 }
 
 // View Static Logs (Completed Deployment History)
-async function viewStaticLogs(deployId) {
-    consoleTitle.textContent = `Deployment Logs: #${deployId}`;
+async function viewStaticLogs(deployId, repoName) {
+    const titleRepo = repoName ? `${repoName} ` : "";
+    consoleTitle.textContent = `Deployment Logs: ${titleRepo}(#${deployId})`;
     terminalScreen.textContent = "Retrieving archived logs...";
     consoleModal.classList.remove("hidden");
     consoleStatusText.textContent = "Archived execution logs.";

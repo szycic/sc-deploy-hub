@@ -350,19 +350,31 @@ def stream_logs(id: int):
         raise HTTPException(status_code=404, detail="Deployment not found")
 
     async def event_generator():
-        if dep["logs"]:
-            yield _format_sse(dep["logs"])
-        if dep["status"] != "running":
-            yield "data: [DONE]\n\n"
-            return
         queue = deployer.broadcaster.subscribe(id)
         try:
+            latest_dep = db.get_deployment(id)
+            initial_logs = latest_dep.get("logs", "") if latest_dep else ""
+
+            if initial_logs:
+                yield _format_sse(initial_logs)
+
+            if latest_dep and latest_dep.get("status") != "running":
+                yield "data: [DONE]\n\n"
+                return
+
+            first_chunk = True
             while True:
                 try:
                     chunk = await queue.get()
                     if chunk is None:
                         yield "data: [DONE]\n\n"
                         break
+
+                    if first_chunk:
+                        first_chunk = False
+                        if initial_logs and initial_logs.endswith(chunk):
+                            continue
+
                     yield _format_sse(chunk)
                 except asyncio.CancelledError:
                     break
