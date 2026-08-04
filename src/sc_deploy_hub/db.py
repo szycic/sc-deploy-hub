@@ -14,7 +14,7 @@ import os
 import sqlite3
 from dotenv import load_dotenv
 from contextlib import closing
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 load_dotenv()
@@ -133,7 +133,7 @@ def complete_deployment(deployment_id: int, status: str) -> None:
             )
 
 
-def get_deployments(limit: int = 50, offset: int = 0) -> List[Dict]:
+def get_deployments(limit: int = 10, offset: int = 0) -> List[Dict]:
     """Return a paginated list of deployment records, newest first.
 
     Log output is intentionally excluded from this query to keep list
@@ -175,3 +175,31 @@ def get_deployment(deployment_id: int) -> Optional[Dict]:
         cursor.execute("SELECT * FROM deployments WHERE id = ?", (deployment_id,))
         row = cursor.fetchone()
         return dict(row) if row else None
+
+
+def get_deployments_count() -> int:
+    """Return the total number of deployment records in the database.
+
+    Returns:
+        Integer total row count.
+    """
+    with closing(get_db_connection()) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM deployments")
+        row = cursor.fetchone()
+        return row[0] if row else 0
+
+
+def get_recent_deployments_count_24h() -> int:
+    """Return the number of deployments started in the last 24 hours.
+
+    Returns:
+        Integer count of recent deployments.
+    """
+    since = (datetime.now() - timedelta(hours=24)).isoformat()
+    with closing(get_db_connection()) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM deployments WHERE started_at >= ?", (since,))
+        row = cursor.fetchone()
+        return row[0] if row else 0
+

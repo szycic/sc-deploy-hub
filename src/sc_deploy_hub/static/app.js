@@ -2,6 +2,11 @@
 let currentTab = "dashboard";
 let servicesList = [];
 let deploymentHistory = [];
+let historyPage = 1;
+let historyPageSize = 10;
+let historyTotalExecutions = 0;
+let historyTotalPages = 1;
+let recent24hCount = 0;
 let logSource = null;
 let autoScroll = true;
 
@@ -142,6 +147,40 @@ function setupEventListeners() {
             showJournalLogs(activeJournalService);
         }
     });
+
+    // History Pagination Control
+    const btnFirst = document.getElementById("btn-page-first");
+    const btnPrev = document.getElementById("btn-page-prev");
+    const btnNext = document.getElementById("btn-page-next");
+    const btnLast = document.getElementById("btn-page-last");
+    const pageSizeSelect = document.getElementById("page-size-select");
+
+    if (btnFirst) {
+        btnFirst.addEventListener("click", () => {
+            if (historyPage > 1) fetchHistory(1);
+        });
+    }
+    if (btnPrev) {
+        btnPrev.addEventListener("click", () => {
+            if (historyPage > 1) fetchHistory(historyPage - 1);
+        });
+    }
+    if (btnNext) {
+        btnNext.addEventListener("click", () => {
+            if (historyPage < historyTotalPages) fetchHistory(historyPage + 1);
+        });
+    }
+    if (btnLast) {
+        btnLast.addEventListener("click", () => {
+            if (historyPage < historyTotalPages) fetchHistory(historyTotalPages);
+        });
+    }
+    if (pageSizeSelect) {
+        pageSizeSelect.addEventListener("change", (e) => {
+            historyPageSize = parseInt(e.target.value, 10) || 10;
+            fetchHistory(1);
+        });
+    }
 }
 
 // Helpers for Client Routing
@@ -207,12 +246,29 @@ async function pollServices() {
     }
 }
 
-async function fetchHistory() {
+async function fetchHistory(page = historyPage) {
+    historyPage = page;
     try {
-        const response = await fetch("/api/v1/deployments");
+        const response = await fetch(`/api/v1/deployments?page=${historyPage}&page_size=${historyPageSize}`);
         if (!response.ok) throw new Error("Offline");
-        deploymentHistory = await response.json();
+        const data = await response.json();
+
+        if (Array.isArray(data)) {
+            deploymentHistory = data;
+            historyTotalExecutions = data.length;
+            historyTotalPages = 1;
+            recent24hCount = data.length;
+        } else {
+            deploymentHistory = data.items || [];
+            historyTotalExecutions = data.total || 0;
+            historyPage = data.page || 1;
+            historyPageSize = data.page_size || 10;
+            historyTotalPages = data.total_pages || 1;
+            recent24hCount = data.recent_24h_count !== undefined ? data.recent_24h_count : 0;
+        }
+
         renderHistory();
+        renderPagination();
         updateMetrics();
     } catch (error) {
         console.error("Error fetching history:", error);
@@ -226,16 +282,49 @@ function updateMetrics() {
     const activeCount = servicesList.filter(s => s.status === "active").length;
     document.getElementById("metric-active-count").textContent = activeCount;
 
-    // Last 24 Hours Deploys
-    const now = new Date();
-    const past24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const recentDeploysCount = deploymentHistory.filter(dep => {
-        const depTime = new Date(dep.started_at);
-        return depTime >= past24h;
-    }).length;
+    document.getElementById("metric-deploys-count").textContent = recent24hCount;
+    document.getElementById("history-count").textContent = `${historyTotalExecutions} executions`;
+}
 
-    document.getElementById("metric-deploys-count").textContent = recentDeploysCount;
-    document.getElementById("history-count").textContent = `${deploymentHistory.length} executions`;
+// Render History Pagination Controls
+function renderPagination() {
+    const paginationContainer = document.getElementById("history-pagination");
+    if (!paginationContainer) return;
+
+    const startSpan = document.getElementById("pagination-start");
+    const endSpan = document.getElementById("pagination-end");
+    const totalSpan = document.getElementById("pagination-total");
+    const indicatorSpan = document.getElementById("pagination-page-indicator");
+
+    const btnFirst = document.getElementById("btn-page-first");
+    const btnPrev = document.getElementById("btn-page-prev");
+    const btnNext = document.getElementById("btn-page-next");
+    const btnLast = document.getElementById("btn-page-last");
+
+    if (historyTotalExecutions === 0) {
+        if (startSpan) startSpan.textContent = "0";
+        if (endSpan) endSpan.textContent = "0";
+        if (totalSpan) totalSpan.textContent = "0";
+        if (indicatorSpan) indicatorSpan.textContent = "Page 1 of 1";
+        if (btnFirst) btnFirst.disabled = true;
+        if (btnPrev) btnPrev.disabled = true;
+        if (btnNext) btnNext.disabled = true;
+        if (btnLast) btnLast.disabled = true;
+        return;
+    }
+
+    const startIdx = (historyPage - 1) * historyPageSize + 1;
+    const endIdx = Math.min(historyPage * historyPageSize, historyTotalExecutions);
+
+    if (startSpan) startSpan.textContent = startIdx;
+    if (endSpan) endSpan.textContent = endIdx;
+    if (totalSpan) totalSpan.textContent = historyTotalExecutions;
+    if (indicatorSpan) indicatorSpan.textContent = `Page ${historyPage} of ${historyTotalPages}`;
+
+    if (btnFirst) btnFirst.disabled = historyPage <= 1;
+    if (btnPrev) btnPrev.disabled = historyPage <= 1;
+    if (btnNext) btnNext.disabled = historyPage >= historyTotalPages;
+    if (btnLast) btnLast.disabled = historyPage >= historyTotalPages;
 }
 
 // Render Services Grid

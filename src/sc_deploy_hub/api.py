@@ -42,6 +42,7 @@ POST /api/v1/config
 import asyncio
 import hashlib
 import hmac
+import math
 import os
 from contextlib import closing
 from typing import Optional
@@ -307,17 +308,48 @@ async def get_service_journal(name: str):
 
 
 @api_v1_router.get("/deployments")
-def get_deployments(limit: int = 50, offset: int = 0):
-    """Return a paginated list of deployment records, newest first.
+def get_deployments(
+    page: int = 1,
+    page_size: int = 10,
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
+):
+    """Return a paginated list of deployment records with metadata, newest first.
 
     Log bodies are excluded from this response; use ``/deployments/{id}/logs``
     to retrieve the full output for a specific run.
 
     Args:
-        limit: Maximum number of records to return (default 50).
-        offset: Number of records to skip for pagination.
+        page: 1-indexed page number (default 1).
+        page_size: Maximum records per page (default 10, max 100).
+        limit: Optional explicit limit override for backwards compatibility.
+        offset: Optional explicit offset override for backwards compatibility.
     """
-    return db.get_deployments(limit=limit, offset=offset)
+    if limit is not None:
+        effective_limit = max(1, limit)
+    else:
+        effective_limit = max(1, min(100, page_size))
+
+    if offset is not None:
+        effective_offset = max(0, offset)
+    else:
+        effective_page = max(1, page)
+        effective_offset = (effective_page - 1) * effective_limit
+
+    items = db.get_deployments(limit=effective_limit, offset=effective_offset)
+    total = db.get_deployments_count()
+    recent_24h_count = db.get_recent_deployments_count_24h()
+    total_pages = max(1, math.ceil(total / effective_limit)) if total > 0 else 1
+    current_page = (effective_offset // effective_limit) + 1 if effective_limit > 0 else 1
+
+    return {
+        "items": items,
+        "total": total,
+        "page": current_page,
+        "page_size": effective_limit,
+        "total_pages": total_pages,
+        "recent_24h_count": recent_24h_count,
+    }
 
 
 @api_v1_router.get("/deployments/{id}/logs")

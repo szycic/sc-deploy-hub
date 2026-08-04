@@ -248,6 +248,30 @@
                             </tbody>
                         </table>
                     </div>
+                    <!-- History Pagination Controls -->
+                    <div class="pagination-container" id="history-pagination">
+                        <div class="pagination-info">
+                            Showing <span id="pagination-start">0</span>–<span id="pagination-end">0</span> of <span id="pagination-total">0</span> executions
+                        </div>
+                        <div class="pagination-controls">
+                            <div class="page-size-selector">
+                                <label for="page-size-select">Per page:</label>
+                                <select id="page-size-select" class="select-input">
+                                    <option value="10" selected>10</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+                            <div class="pagination-buttons">
+                                <button class="btn btn-secondary btn-small" id="btn-page-first" title="First Page">&laquo;</button>
+                                <button class="btn btn-secondary btn-small" id="btn-page-prev" title="Previous Page">&lsaquo; Prev</button>
+                                <span class="pagination-page-indicator" id="pagination-page-indicator">Page 1 of 1</span>
+                                <button class="btn btn-secondary btn-small" id="btn-page-next" title="Next Page">Next &rsaquo;</button>
+                                <button class="btn btn-secondary btn-small" id="btn-page-last" title="Last Page">&raquo;</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
