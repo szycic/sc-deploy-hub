@@ -14,7 +14,7 @@ Provides:
 import asyncio
 import os
 from datetime import datetime
-from typing import Dict, Set
+from typing import Dict, Optional, Set
 
 from sc_deploy_hub.config import RepositoryConfig
 from sc_deploy_hub import db
@@ -146,33 +146,43 @@ async def run_command(cmd: str, cwd: str, deployment_id: int) -> bool:
         return False
 
 
-async def get_service_status(service_name: str) -> str:
+async def get_service_status(service_name: Optional[str]) -> str:
     """Query the active state of a systemd service unit.
 
     Args:
-        service_name: The systemd unit name (e.g. ``"my-app.service"``).
+        service_name: The systemd unit name (e.g. ``"my-app.service"``), or None.
 
     Returns:
-        One of ``"active"``, ``"inactive"``, ``"failed"``, or ``"unknown"``.
+        One of ``"active"``, ``"inactive"``, ``"failed"``, ``"unknown"``, or ``"none"``.
     """
+    if not service_name or not service_name.strip():
+        return "none"
     details = await get_service_details(service_name)
     return details["status"]
 
 
-async def get_service_details(service_name: str) -> dict:
+async def get_service_details(service_name: Optional[str]) -> dict:
     """Query extensive details of a systemd service unit.
 
     Args:
-        service_name: The systemd unit name (e.g. ``"my-app.service"``).
+        service_name: The systemd unit name (e.g. ``"my-app.service"``), or None.
 
     Returns:
         A dictionary containing:
-            * status: One of ``"active"``, ``"inactive"``, ``"failed"``, or ``"unknown"``.
+            * status: One of ``"active"``, ``"inactive"``, ``"failed"``, ``"unknown"``, or ``"none"``.
             * sub_state: Systemd sub-state (e.g. ``"running"``, ``"dead"``).
             * pid: The Main PID (int), or None.
             * memory: Human-readable current memory usage (str), or None.
             * uptime: Human-readable active uptime duration (str), or None.
     """
+    if not service_name or not service_name.strip():
+        return {
+            "status": "none",
+            "sub_state": "",
+            "pid": None,
+            "memory": None,
+            "uptime": None,
+        }
     try:
         process = await asyncio.create_subprocess_exec(
             "systemctl", "show",
@@ -301,20 +311,20 @@ async def get_service_details(service_name: str) -> dict:
         }
 
 
-async def control_service(service_name: str, action: str) -> bool:
+async def control_service(service_name: Optional[str], action: str) -> bool:
     """Send a start/stop/restart command to a systemd service via sudo.
 
     Requires that the running user has passwordless sudo access to
     ``/usr/bin/systemctl``, which ``install.sh`` configures automatically.
 
     Args:
-        service_name: The systemd unit name to control.
+        service_name: The systemd unit name to control, or None.
         action: One of ``"start"``, ``"stop"``, or ``"restart"``.
 
     Returns:
         ``True`` if the command exited successfully, ``False`` otherwise.
     """
-    if action not in ("start", "stop", "restart"):
+    if not service_name or not service_name.strip() or action not in ("start", "stop", "restart"):
         return False
     try:
         process = await asyncio.create_subprocess_exec(
@@ -370,6 +380,11 @@ async def execute_deploy(deployment_id: int, repo_name: str, repo_config: Reposi
                 await log_and_broadcast(deployment_id, f"Step '{step}' failed. Stopping deploy.\n")
                 db.complete_deployment(deployment_id, "failed")
                 return
+
+        if not repo_config.service_name or not repo_config.service_name.strip():
+            await log_and_broadcast(deployment_id, "No systemd service configured. Deployment completed successfully!\n")
+            db.complete_deployment(deployment_id, "success")
+            return
 
         if getattr(repo_config, "restart_async", False):
             # For asynchronous restarts (e.g. self-restart), complete the deployment first.

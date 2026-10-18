@@ -360,14 +360,22 @@ function renderServices() {
         const startBtn = card.querySelector(".btn-start");
         const stopBtn = card.querySelector(".btn-stop");
         const restartBtn = card.querySelector(".btn-restart");
-        if (service.status === "active") {
+        const journalBtn = card.querySelector(".btn-journal");
+        if (!service.service_name) {
+            if (startBtn) startBtn.style.display = "none";
+            if (stopBtn) stopBtn.style.display = "none";
+            if (restartBtn) restartBtn.style.display = "none";
+            if (journalBtn) journalBtn.style.display = "none";
+        } else if (service.status === "active") {
             if (startBtn) startBtn.style.display = "none";
             if (stopBtn) stopBtn.style.display = "inline-flex";
             if (restartBtn) restartBtn.style.display = "inline-flex";
+            if (journalBtn) journalBtn.style.display = "inline-flex";
         } else {
             if (startBtn) startBtn.style.display = "inline-flex";
             if (stopBtn) stopBtn.style.display = "none";
             if (restartBtn) restartBtn.style.display = "none";
+            if (journalBtn) journalBtn.style.display = "inline-flex";
         }
 
         // 4. Update deployment history block

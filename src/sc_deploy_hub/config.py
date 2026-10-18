@@ -27,7 +27,7 @@ class RepositoryConfig(BaseModel):
 
     path: str
     branch: str = "main"
-    service_name: str
+    service_name: Optional[str] = None
     deploy_steps: List[str] = Field(default_factory=list)
     restart_async: bool = False
 

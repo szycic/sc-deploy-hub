@@ -277,6 +277,9 @@ async def service_control(name: str, control: ControlAction):
         raise HTTPException(status_code=404, detail="Repository not configured")
 
     repo_config = config_data.repositories[name]
+    if not repo_config.service_name or not repo_config.service_name.strip():
+        raise HTTPException(status_code=400, detail="Service name is not configured for this repository")
+
     success = await deployer.control_service(repo_config.service_name, control.action)
     if not success:
         raise HTTPException(status_code=500, detail=f"Failed to execute '{control.action}' on service")
@@ -295,6 +298,9 @@ async def get_service_journal(name: str):
         raise HTTPException(status_code=404, detail="Service not configured")
 
     repo_config = config_data.repositories[name]
+    if not repo_config.service_name or not repo_config.service_name.strip():
+        raise HTTPException(status_code=400, detail="Service name is not configured for this repository")
+
     try:
         process = await asyncio.create_subprocess_exec(
             "journalctl", "-u", repo_config.service_name, "-n", "100", "--no-pager",

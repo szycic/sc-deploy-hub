@@ -145,7 +145,7 @@
                         <div class="service-card-body">
                             <div class="info-item">
                                 <span class="info-label">Target Service</span>
-                                <span class="info-value">{{ service.service_name }}</span>
+                                <span class="info-value">{{ service.service_name or 'None' }}</span>
                             </div>
                             <div class="info-item">
                                 <span class="info-label">Git Branch</span>
@@ -181,6 +181,7 @@
                                 </svg>
                                 Deploy
                             </button>
+                            {% if service.service_name %}
                             <button class="btn btn-success btn-small btn-start" {% if service.status=='active'
                                 %}style="display: none;" {% endif %}
                                 onclick="controlService('{{ service.name }}', 'start')">
@@ -205,7 +206,7 @@
                                 </svg>
                                 Restart
                             </button>
-                            <button class="btn btn-secondary btn-small" onclick="showJournalLogs('{{ service.name }}')">
+                            <button class="btn btn-secondary btn-small btn-journal" onclick="showJournalLogs('{{ service.name }}')">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                                     <polyline points="14 2 14 8 20 8" />
@@ -215,6 +216,7 @@
                                 </svg>
                                 Journal
                             </button>
+                            {% endif %}
                         </div>
                     </div>
                     {% else %}
